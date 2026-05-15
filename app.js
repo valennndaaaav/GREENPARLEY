@@ -1,6 +1,6 @@
 // CLAVES DE LAS DOS BASES DE DATOS SEPARADAS
 const apiKeyPartidos = "0464d33c8013d01fb7387b5148f18a9a"; // BD 1: API-Sports (Partidos e Historial)
-const apiKeyCuotas = "TU_NUEVA_API_KEY_AQUI"; // BD 2: The Odds API (Cuotas de 1xBet). Reemplazar por tu clave.
+const apiKeyCuotas = "TU_NUEVA_API_KEY_AQUI"; // BD 2: The Odds API (Cuotas de 1xBet). Reemplazar por tu clave real.
 
 const hoy = new Date().toISOString().split('T')[0];
 const urlPartidos = `https://v3.football.api-sports.io/fixtures?date=${hoy}`;
@@ -30,19 +30,20 @@ async function cargarPartidosDeHoy() {
         const datos = await respuesta.json();
 
         if (datos.errors && Object.keys(datos.errors).length > 0) {
-            document.getElementById('contenedor-partidos').innerHTML = `<h3 style='color: #e62e2e;'>[ERROR] LÍMITE DE CONSULTAS ALCANZADO.</h3>`;
+            document.getElementById('contenedor-partidos').innerHTML = `<h3 style='color: #e62e2e;'>[ERROR] LÍMITE DE CONSULTAS ALCANZADO EN API-SPORTS.</h3>`;
             return; 
         }
 
         if (!datos.response || datos.response.length === 0) {
-            document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #c4a771;'>NO HAY PARTIDOS PROGRAMADOS HOY.</h3>";
+            document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #c4a771;'>NO HAY PARTIDOS PROGRAMADOS HOY EN ESTA LIGA.</h3>";
             return;
         }
 
         baseDeDatosHoy = datos.response; 
         renderizarPartidos(baseDeDatosHoy.slice(0, 10));
     } catch (error) {
-        document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #e62e2e;'>[ERROR] FALLA DE CONEXIÓN.</h3>";
+        console.error(error);
+        document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #e62e2e;'>[ERROR] FALLA DE CONEXIÓN. REVISÁ LA CONSOLA (F12).</h3>";
     }
 }
 
@@ -68,12 +69,12 @@ function renderizarPartidos(listaDePartidos) {
 
         contenedor.innerHTML += `
             <div class="tarjeta-partido" onclick="abrirModal('estadisticas', ${partido.fixture.id}, ${local.id}, ${visitante.id}, '${local.name.replace(/'/g, "\\'")}', '${visitante.name.replace(/'/g, "\\'")}')">
-                <div class="encabezado-liga"><img src="${liga.logo}"><span>${liga.name}</span></div>
+                <div class="encabezado-liga"><img src="${liga.logo}" alt="Logo liga"><span>${liga.name}</span></div>
                 <div class="cuerpo-partido">
                     <div class="info-partido">
-                        <div class="equipo"><img src="${local.logo}"><span>${local.name}</span>${historialHTML}</div>
+                        <div class="equipo"><img src="${local.logo}" alt="Local"><span>${local.name}</span>${historialHTML}</div>
                         <div class="centro-partido"><div class="hora">${horaLocal}</div></div>
-                        <div class="equipo"><img src="${visitante.logo}"><span>${visitante.name}</span>${historialHTML}</div>
+                        <div class="equipo"><img src="${visitante.logo}" alt="Visitante"><span>${visitante.name}</span>${historialHTML}</div>
                     </div>
                     ${semaforoHTML}
                 </div>
@@ -94,34 +95,41 @@ async function abrirModal(tipo, idFixture, idLocal, idVisitante, nombreLocal, no
         let cSegura = (100 / pSegura).toFixed(2), cModerada = (100 / pModerada).toFixed(2), cArriesgada = (100 / pArriesgada).toFixed(2);
 
         // Intento de extraer datos reales de la SEGUNDA BD (The Odds API)
-        if (apiKeyCuotas !== "TU_NUEVA_API_KEY_AQUI") {
+        if (apiKeyCuotas !== "TU_NUEVA_API_KEY_AQUI" && apiKeyCuotas.length > 10) {
             try {
                 const urlOtraBD = `https://api.the-odds-api.com/v4/sports/upcoming/odds/?regions=eu&markets=h2h&bookmakers=1xbet&apiKey=${apiKeyCuotas}`;
                 const resOtraBD = await fetch(urlOtraBD);
-                const datosOtraBD = await resOtraBD.json();
+                
+                if (resOtraBD.ok) {
+                    const datosOtraBD = await resOtraBD.json();
 
-                const partidoFondo = datosOtraBD.find(p => 
-                    p.home_team.toLowerCase().includes(nombreLocal.toLowerCase().substring(0, 5)) || 
-                    nombreLocal.toLowerCase().includes(p.home_team.toLowerCase().substring(0, 5))
-                );
+                    const partidoFondo = datosOtraBD.find(p => 
+                        p.home_team.toLowerCase().includes(nombreLocal.toLowerCase().substring(0, 5)) || 
+                        nombreLocal.toLowerCase().includes(p.home_team.toLowerCase().substring(0, 5))
+                    );
 
-                if (partidoFondo && partidoFondo.bookmakers.length > 0) {
-                    const apuestas = partidoFondo.bookmakers[0].markets[0].outcomes;
-                    
-                    const asginarCuotaReal = (jugada) => {
-                        if(jugada === "Gana Local") return apuestas.find(a => a.name === partidoFondo.home_team)?.price;
-                        if(jugada === "Gana Visitante") return apuestas.find(a => a.name === partidoFondo.away_team)?.price;
-                        if(jugada === "Empate Exacto") return apuestas.find(a => a.name === 'Draw')?.price;
-                        return null;
-                    };
+                    if (partidoFondo && partidoFondo.bookmakers.length > 0) {
+                        const apuestas = partidoFondo.bookmakers[0].markets[0].outcomes;
+                        
+                        const asginarCuotaReal = (jugada) => {
+                            if(jugada === "Gana Local") return apuestas.find(a => a.name === partidoFondo.home_team)?.price;
+                            if(jugada === "Gana Visitante") return apuestas.find(a => a.name === partidoFondo.away_team)?.price;
+                            if(jugada === "Empate Exacto") return apuestas.find(a => a.name === 'Draw')?.price;
+                            return null;
+                        };
 
-                    let rSegura = asginarCuotaReal(betSegura); if(rSegura) cSegura = rSegura;
-                    let rModerada = asginarCuotaReal(betModerada); if(rModerada) cModerada = rModerada;
-                    let rArriesgada = asginarCuotaReal(betArriesgada); if(rArriesgada) cArriesgada = rArriesgada;
+                        let rSegura = asginarCuotaReal(betSegura); if(rSegura) cSegura = rSegura;
+                        let rModerada = asginarCuotaReal(betModerada); if(rModerada) cModerada = rModerada;
+                        let rArriesgada = asginarCuotaReal(betArriesgada); if(rArriesgada) cArriesgada = rArriesgada;
+                    }
+                } else {
+                    console.error("Error en la The Odds API. Código:", resOtraBD.status);
                 }
             } catch (error) {
-                console.error("Fallo de sincronización con 1xBet. Usando cuotas de algoritmo.");
+                console.error("Fallo de conexión con The Odds API. Usando cuotas matemáticas.", error);
             }
+        } else {
+             console.warn("Falta tu API Key de The Odds API. Usando cuotas matemáticas.");
         }
 
         cuerpo.innerHTML = `
@@ -174,7 +182,10 @@ async function abrirModal(tipo, idFixture, idLocal, idVisitante, nombreLocal, no
                 });
                 cuerpo.innerHTML = listaHTML + '</ul>';
             }
-        } catch (error) { cuerpo.innerHTML = `<p style="color: #e62e2e;">[ERROR] FALLA DE CONEXIÓN AL HISTORIAL.</p>`; }
+        } catch (error) { 
+            console.error(error);
+            cuerpo.innerHTML = `<p style="color: #e62e2e;">[ERROR] FALLA DE CONEXIÓN AL HISTORIAL.</p>`; 
+        }
     }
 }
 
