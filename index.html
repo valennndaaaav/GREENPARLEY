@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Greenparley</title>
+    <title>Parley App</title>
     <style>
-        body { background-color: #121212; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
-        h1 { color: #00ff00; font-size: 2.5rem; margin-bottom: 0px; }
+        body { background-color: #000000; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
+        h1 { color: #ffffff; font-size: 2.5rem; margin-bottom: 0px; text-transform: uppercase; letter-spacing: 2px;}
         p { color: #aaaaaa; margin-bottom: 20px; font-size: 0.9rem; }
         
         .filtros { margin-bottom: 20px; display: flex; justify-content: center; }
         .menu-personalizado { position: relative; width: 300px; text-align: left; user-select: none; z-index: 10; }
-        .menu-boton { background-color: #1e1e1e; border: 2px solid #00ff00; padding: 10px 15px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .menu-boton { background-color: #111111; border: 2px solid #ffffff; padding: 10px 15px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
         .contenido-boton { display: flex; align-items: center; gap: 10px; }
         .contenido-boton img { width: 20px; height: 20px; background: white; border-radius: 50%; padding: 2px;}
-        .menu-opciones { position: absolute; top: 110%; left: 0; right: 0; background-color: #1e1e1e; border: 1px solid #00ff00; border-radius: 8px; max-height: 250px; overflow-y: auto; }
+        .menu-opciones { position: absolute; top: 110%; left: 0; right: 0; background-color: #111111; border: 1px solid #ffffff; border-radius: 8px; max-height: 250px; overflow-y: auto; }
         .oculto { display: none !important; }
         .opcion { padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #333; }
         .opcion:hover { background-color: #333; }
@@ -22,76 +22,65 @@
 
         #contenedor-partidos { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 800px; margin: 0 auto; }
 
-        .tarjeta-partido { cursor: pointer; background-color: #1e1e1e; border: 1px solid #00ff00; border-radius: 10px; padding: 10px 15px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 4px 8px rgba(0,255,0,0.1); transition: transform 0.2s; }
-        .tarjeta-partido:hover { transform: scale(1.02); border-color: #ffffff; } 
+        .tarjeta-partido { cursor: pointer; background-color: #111111; border: 1px solid #ffffff; border-radius: 10px; padding: 10px 15px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 4px 8px rgba(255,255,255,0.1); transition: transform 0.2s; }
+        .tarjeta-partido:hover { transform: scale(1.02); border-color: #aaaaaa; } 
         
         .encabezado-liga { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 10px; }
-        .encabezado-liga img { width: 20px; height: 20px; border-radius: 50%; background-color: white; padding: 2px; }
+        .encabezado-liga img { width: 20px; height: 20px; border-radius: 50%; background-color: white; padding: 2px; filter: grayscale(100%); }
         .encabezado-liga span { font-size: 0.75rem; color: #aaaaaa; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
         .cuerpo-partido { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
         .info-partido { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 80%; padding-right: 15px; border-right: 1px solid #333; }
         .equipo { display: flex; flex-direction: column; align-items: center; width: 35%; }
-        .equipo img { width: 35px; height: 35px; margin-bottom: 5px; }
+        .equipo img { width: 35px; height: 35px; margin-bottom: 5px; filter: grayscale(100%); }
         .equipo span { font-size: 0.85rem; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
         .historial { display: flex; gap: 2px; margin-top: 5px; }
-        .historial span { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: bold; border-radius: 3px; color: #121212; }
-        .bg-g { background-color: #00ff00; } .bg-e { background-color: #aaaaaa; } .bg-p { background-color: #ff3333; color: white !important;} 
+        .historial span { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: bold; border-radius: 3px; color: #000000; }
+        .bg-g { background-color: #ffffff; } .bg-e { background-color: #888888; } .bg-p { background-color: #444444; color: white !important;} 
         .centro-partido { width: 30%; display: flex; justify-content: center; }
-        .hora { color: #00ff00; font-weight: bold; font-size: 1.1rem; background-color: #121212; padding: 4px 10px; border-radius: 6px; }
+        .hora { color: #ffffff; font-weight: bold; font-size: 1.1rem; background-color: #000000; padding: 4px 10px; border-radius: 6px; border: 1px solid #333; }
         
         .semaforo { cursor: help; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 15%; gap: 4px; padding: 5px; border-radius: 5px; transition: background 0.2s;}
         .semaforo:hover { background-color: #333; }
-        .luz { width: 100%; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.7rem; font-weight: bold; color: #121212; }
-        .luz-verde { background-color: #00ff00; } .luz-amarilla { background-color: #ffcc00; } .luz-roja { background-color: #ff3333; color: white !important; }
+        .luz { width: 100%; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.7rem; font-weight: bold; color: #000000; }
+        .luz-blanca { background-color: #ffffff; } .luz-gris { background-color: #aaaaaa; } .luz-oscura { background-color: #444444; color: #ffffff !important; }
 
-        /* DISEÑO DE LA VENTANA FLOTANTE (MODAL) */
-        .modal-fondo {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.8); z-index: 1000;
-            display: flex; justify-content: center; align-items: center;
-        }
-        .modal-contenido {
-            background-color: #1e1e1e; border: 2px solid #00ff00; border-radius: 15px;
-            padding: 20px; width: 90%; max-width: 400px; position: relative;
-            box-shadow: 0 0 20px rgba(0,255,0,0.2); text-align: left;
-        }
-        .cerrar-modal {
-            position: absolute; top: 10px; right: 15px; font-size: 1.5rem;
-            color: #aaaaaa; cursor: pointer; font-weight: bold;
-        }
-        .cerrar-modal:hover { color: red; }
-        #modal-titulo { color: #00ff00; margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        /* DISEÑO DE LA VENTANA FLOTANTE */
+        .modal-fondo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+        .modal-contenido { background-color: #111111; border: 2px solid #ffffff; border-radius: 15px; padding: 20px; width: 90%; max-width: 400px; position: relative; text-align: left; }
+        .cerrar-modal { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; color: #aaaaaa; cursor: pointer; font-weight: bold; }
+        .cerrar-modal:hover { color: #ffffff; }
+        #modal-titulo { color: #ffffff; margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid #333; padding-bottom: 10px; text-transform: uppercase; }
         #modal-cuerpo { color: #ffffff; line-height: 1.5; font-size: 0.95rem; }
     </style>
 </head>
 <body>
-    <h1>Greenparley</h1>
-    <p>Pronósticos algorítmicos en vivo ⚽</p>
+    <h1>PARLEY</h1>
+    <p>SISTEMA ALGORÍTMICO DE PRONÓSTICOS</p>
     
     <div class="filtros">
         <div class="menu-personalizado">
             <div id="menu-boton" class="menu-boton">
-                <div id="menu-texto" class="contenido-boton"><span style="font-size: 1.2rem;">🌍</span> Todos los partidos</div><span>▼</span>
+                <div id="menu-texto" class="contenido-boton"><span>[ TODOS LOS PARTIDOS ]</span></div><span>▼</span>
             </div>
             <div id="menu-opciones" class="menu-opciones oculto">
-                <div class="opcion" data-value="todos"><span style="font-size: 1.2rem; padding: 2px;">🌍</span> Todos los partidos</div>
-                <div class="opcion" data-value="128"><img src="https://media.api-sports.io/football/leagues/128.png"> Liga Argentina</div>
-                <div class="opcion" data-value="13"><img src="https://media.api-sports.io/football/leagues/13.png"> Copa Libertadores</div>
-                <div class="opcion" data-value="39"><img src="https://media.api-sports.io/football/leagues/39.png"> Premier League</div>
-                <div class="opcion" data-value="140"><img src="https://media.api-sports.io/football/leagues/140.png"> La Liga (España)</div>
+                <div class="opcion" data-value="todos"><span>[ TODOS LOS PARTIDOS ]</span></div>
+                <div class="opcion" data-value="128">LIGA ARGENTINA</div>
+                <div class="opcion" data-value="13">COPA LIBERTADORES</div>
+                <div class="opcion" data-value="39">PREMIER LEAGUE</div>
+                <div class="opcion" data-value="140">LA LIGA</div>
             </div>
         </div>
     </div>
 
     <div id="contenedor-partidos">
-        <h3 id="cargando" style="color: yellow;">⏳ Analizando base de datos global...</h3>
+        <h3 id="cargando" style="color: #aaaaaa;">PROCESANDO BASE DE DATOS PRINCIPAL...</h3>
     </div>
 
     <div id="mi-modal" class="modal-fondo oculto">
         <div class="modal-contenido">
             <span class="cerrar-modal" onclick="cerrarModal()">×</span>
-            <h2 id="modal-titulo">Título</h2>
-            <div id="modal-cuerpo">Acá va el texto de la base de datos...</div>
+            <h2 id="modal-titulo">TÍTULO</h2>
+            <div id="modal-cuerpo">CONTENIDO</div>
         </div>
     </div>
 
