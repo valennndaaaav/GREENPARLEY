@@ -6,7 +6,7 @@
     <title>Parley VIP</title>
     <style>
         /* FONDO ESTILO PAÑO DE CASINO */
-        body { background-color: #0a1f12; color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
+        body { background-color: #0a1f12; color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }
         
         /* TEXTOS CON DESTELLO DORADO */
         h1 { color: #d4af37; font-size: 2.5rem; margin-bottom: 0px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
@@ -26,8 +26,70 @@
         #contenedor-partidos { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 800px; margin: 0 auto; }
 
         /* TARJETAS CON BORDES DORADOS */
-        .tarjeta-partido { cursor: pointer; background-color: #12331f; border: 1px solid #d4af37; border-radius: 10px; padding: 10px 15px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.6); transition: transform 0.2s, box-shadow 0.2s; }
+        .tarjeta-partido { cursor: pointer; background-color: #12331f; border: 1px solid #d4af37; border-radius: 10px; padding: 10px 15px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.6); transition: transform 0.2s, box-shadow 0.2s; box-sizing: border-box; }
         .tarjeta-partido:hover { transform: scale(1.02); box-shadow: 0 6px 15px rgba(212, 175, 55, 0.2); } 
         
         .encabezado-liga { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-bottom: 1px solid #1a4229; padding-bottom: 8px; margin-bottom: 10px; }
-        .encabezado-liga img { width: 20px; height: 20px; border-radius: 50%; background-color: white; padding: 2
+        .encabezado-liga img { width: 20px; height: 20px; border-radius: 50%; background-color: white; padding: 2px; }
+        .encabezado-liga span { font-size: 0.75rem; color: #d4af37; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+        .cuerpo-partido { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
+        .info-partido { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 80%; padding-right: 15px; border-right: 1px solid #1a4229; }
+        .equipo { display: flex; flex-direction: column; align-items: center; width: 35%; }
+        .equipo img { width: 35px; height: 35px; margin-bottom: 5px; background-color: rgba(255,255,255,0.1); border-radius: 5px; padding: 2px;}
+        .equipo span { font-size: 0.85rem; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: #f4f4f4;}
+        
+        .historial { display: flex; gap: 2px; margin-top: 5px; }
+        .historial span { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: bold; border-radius: 3px; color: #000000; }
+        .bg-g { background-color: #0bd14e; } .bg-e { background-color: #888888; color: #ffffff !important; } .bg-p { background-color: #e62e2e; color: white !important;} 
+        
+        .centro-partido { width: 30%; display: flex; justify-content: center; }
+        .hora { color: #d4af37; font-weight: bold; font-size: 1.1rem; background-color: #05120a; padding: 4px 10px; border-radius: 6px; border: 1px solid #d4af37; box-shadow: inset 0 0 5px rgba(0,0,0,0.8); }
+        
+        .semaforo { cursor: help; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 15%; gap: 4px; padding: 5px; border-radius: 5px; transition: background 0.2s;}
+        .semaforo:hover { background-color: #1a4229; }
+        .luz { width: 100%; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.7rem; font-weight: bold; color: #000000; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .luz-verde { background-color: #0bd14e; } .luz-amarilla { background-color: #ffd700; } .luz-roja { background-color: #e62e2e; color: #ffffff !important; }
+
+        /* DISEÑO DE LA VENTANA FLOTANTE VIP */
+        .modal-fondo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); z-index: 1000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .modal-contenido { background-color: #12331f; border: 2px solid #d4af37; border-radius: 15px; padding: 20px; width: 90%; max-width: 400px; position: relative; text-align: left; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); box-sizing: border-box; }
+        .cerrar-modal { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; color: #d4af37; cursor: pointer; font-weight: bold; }
+        .cerrar-modal:hover { color: #ffffff; }
+        #modal-titulo { color: #d4af37; margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid #d4af37; padding-bottom: 10px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        #modal-cuerpo { color: #ffffff; line-height: 1.5; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <h1>PARLEY VIP</h1>
+    <p>PRONÓSTICOS Y CUOTAS EN VIVO 🎰</p>
+    
+    <div class="filtros">
+        <div class="menu-personalizado">
+            <div id="menu-boton" class="menu-boton">
+                <div id="menu-texto" class="contenido-boton"><span style="font-size: 1.2rem;">🎲</span> <span>TODOS LOS PARTIDOS</span></div><span>▼</span>
+            </div>
+            <div id="menu-opciones" class="menu-opciones oculto">
+                <div class="opcion" data-value="todos"><span style="font-size: 1.2rem; padding: 2px;">🎲</span> TODOS LOS PARTIDOS</div>
+                <div class="opcion" data-value="128"><img src="https://media.api-sports.io/football/leagues/128.png" alt="Liga Argentina"> LIGA ARGENTINA</div>
+                <div class="opcion" data-value="13"><img src="https://media.api-sports.io/football/leagues/13.png" alt="Copa Libertadores"> COPA LIBERTADORES</div>
+                <div class="opcion" data-value="39"><img src="https://media.api-sports.io/football/leagues/39.png" alt="Premier League"> PREMIER LEAGUE</div>
+                <div class="opcion" data-value="140"><img src="https://media.api-sports.io/football/leagues/140.png" alt="La Liga"> LA LIGA</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contenedor-partidos">
+        <h3 id="cargando" style="color: #d4af37;">REPARTIENDO CARTAS... ⏳</h3>
+    </div>
+
+    <div id="mi-modal" class="modal-fondo oculto">
+        <div class="modal-contenido">
+            <span class="cerrar-modal" onclick="cerrarModal()">×</span>
+            <h2 id="modal-titulo">TÍTULO</h2>
+            <div id="modal-cuerpo">CONTENIDO</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
