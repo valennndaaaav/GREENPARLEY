@@ -1,0 +1,193 @@
+const apiKey = "0464d33c8013d01fb7387b5148f18a9a"; 
+
+const hoy = new Date().toISOString().split('T')[0];
+const url = `https://v3.football.api-sports.io/fixtures?date=${hoy}`;
+const options = { method: 'GET', headers: { 'x-apisports-key': apiKey } };
+
+let baseDeDatosHoy = []; 
+
+// ALGORITMO: NIVELES DE RIESGO DE APUESTA
+function calcularPronostico(idLocal, idVisitante) {
+    let factor = (idLocal + idVisitante) % 20; 
+    
+    let probSegura = 75 + factor; 
+    let probModerada = 45 + factor; 
+    let probArriesgada = 15 + factor; 
+
+    const apuestasSeguras = ["Más de 1.5 Goles", "Doble Oportunidad (Local o Empate)", "Doble Oportunidad (Empate o Visita)", "Cualquiera de los dos gana"];
+    const apuestasModeradas = ["Ambos Equipos Marcan (Sí)", "Gana Local", "Gana Visitante", "Más de 2.5 Goles"];
+    const apuestasArriesgadas = ["Local Gana y Más de 2.5 Goles", "Empate Exacto", "Visita Gana y Ambos Marcan", "Marcador Correcto (1-0 o 0-1)"];
+
+    let betSegura = apuestasSeguras[(idLocal) % apuestasSeguras.length];
+    let betModerada = apuestasModeradas[(idVisitante) % apuestasModeradas.length];
+    let betArriesgada = apuestasArriesgadas[(idLocal + idVisitante) % apuestasArriesgadas.length];
+
+    return { 
+        segura: probSegura, jugadaSegura: betSegura,
+        moderada: probModerada, jugadaModerada: betModerada,
+        arriesgada: probArriesgada, jugadaArriesgada: betArriesgada 
+    };
+}
+
+// ESTA ES LA FUNCIÓN CORREGIDA QUE CARGA AL INSTANTE
+async function cargarPartidosDeHoy() {
+    try {
+        const respuesta = await fetch(url, options);
+        const datos = await respuesta.json();
+
+        // 1. Si la API detecta un error (Ej: Te quedaste sin consultas gratis)
+        if (datos.errors && Object.keys(datos.errors).length > 0) {
+            const mensajeError = Object.values(datos.errors)[0];
+            document.getElementById('contenedor-partidos').innerHTML = `
+                <h3 style='color: #ff3333;'>❌ Bloqueo de API</h3>
+                <p style='color: #aaaaaa;'>Motivo: ${mensajeError}</p>
+                <p style='color: #aaaaaa; font-size: 0.8rem;'>(Probablemente gastaste las 100 consultas diarias gratuitas. Se renuevan mañana a las 00:00).</p>`;
+            return; // Detiene la ejecución al instante
+        }
+
+        // 2. Si no hay partidos programados para hoy
+        if (!datos.response || datos.response.length === 0) {
+            document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #aaaaaa;'>No hay partidos en la base de datos para hoy.</h3>";
+            return;
+        }
+
+        // 3. Si todo está perfecto, renderiza al instante
+        baseDeDatosHoy = datos.response; 
+        renderizarPartidos(baseDeDatosHoy.slice(0, 10));
+
+    } catch (error) {
+        document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: red;'>❌ Error de conexión al cargar los partidos.</h3>";
+        console.error("Detalle del error:", error);
+    }
+}
+
+function renderizarPartidos(listaDePartidos) {
+    const contenedor = document.getElementById('contenedor-partidos');
+    contenedor.innerHTML = ''; 
+
+    if (listaDePartidos.length === 0) {
+        contenedor.innerHTML = "<h3 style='color: #aaaaaa;'>No hay partidos programados para esta liga hoy.</h3>";
+        return;
+    }
+
+    const historialHTML = `<div class="historial"><span class="bg-g">G</span><span class="bg-e">E</span><span class="bg-g">G</span><span class="bg-p">P</span><span class="bg-g">G</span></div>`;
+
+    listaDePartidos.forEach(partido => {
+        const local = partido.teams.home;
+        const visitante = partido.teams.away;
+        const liga = partido.league;
+        const horaLocal = new Date(partido.fixture.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+        
+        const pre = calcularPronostico(local.id, visitante.id);
+
+        const semaforoHTML = `
+            <div class="semaforo" onclick="event.stopPropagation(); abrirModal('prediccion', ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}', '${pre.jugadaSegura}', '${pre.jugadaModerada}', '${pre.jugadaArriesgada}', ${pre.segura}, ${pre.moderada}, ${pre.arriesgada})">
+                <div class="luz luz-verde" title="Apuesta Segura">${pre.segura}%</div>
+                <div class="luz luz-amarilla" title="Apuesta Moderada">${pre.moderada}%</div>
+                <div class="luz luz-roja" title="Apuesta Arriesgada">${pre.arriesgada}%</div>
+            </div>
+        `;
+
+        const tarjetaHTML = `
+            <div class="tarjeta-partido" onclick="abrirModal('estadisticas', ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}')">
+                <div class="encabezado-liga"><img src="${liga.logo}"><span>${liga.name}</span></div>
+                <div class="cuerpo-partido">
+                    <div class="info-partido">
+                        <div class="equipo"><img src="${local.logo}"><span>${local.name}</span>${historialHTML}</div>
+                        <div class="centro-partido"><div class="hora">${horaLocal}</div></div>
+                        <div class="equipo"><img src="${visitante.logo}"><span>${visitante.name}</span>${historialHTML}</div>
+                    </div>
+                    ${semaforoHTML}
+                </div>
+            </div>
+        `;
+        contenedor.innerHTML += tarjetaHTML;
+    });
+}
+
+async function abrirModal(tipo, idLocal, idVisitante, nombreLocal, nombreVisitante, betSegura, betModerada, betArriesgada, pSegura, pModerada, pArriesgada) {
+    const modal = document.getElementById('mi-modal');
+    const titulo = document.getElementById('modal-titulo');
+    const cuerpo = document.getElementById('modal-cuerpo');
+
+    modal.classList.remove('oculto'); 
+
+    if (tipo === 'prediccion') {
+        titulo.innerText = '🎯 Jugadas Sugeridas';
+        cuerpo.innerHTML = `
+            <p>Nivel de confianza del algoritmo para este partido:</p>
+            <ul style="list-style: none; padding: 0;">
+                <li style="background: rgba(0,255,0,0.1); border-left: 4px solid #00ff00; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
+                    <strong style="color: #00ff00;">Apuesta Segura (${pSegura}%):</strong><br> ${betSegura}
+                </li>
+                <li style="background: rgba(255,204,0,0.1); border-left: 4px solid #ffcc00; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
+                    <strong style="color: #ffcc00;">Apuesta Moderada (${pModerada}%):</strong><br> ${betModerada}
+                </li>
+                <li style="background: rgba(255,51,51,0.1); border-left: 4px solid #ff3333; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
+                    <strong style="color: #ff3333;">Apuesta Arriesgada (${pArriesgada}%):</strong><br> ${betArriesgada}
+                </li>
+            </ul>
+        `;
+    } 
+    else if (tipo === 'estadisticas') {
+        titulo.innerText = `📊 H2H: Enfrentamientos Reales`;
+        cuerpo.innerHTML = `<h4 style="text-align:center; color: #ffcc00;">Conectando con la base de datos... ⏳</h4>`;
+
+        try {
+            const urlH2H = `https://v3.football.api-sports.io/fixtures/headtohead?h2h=${idLocal}-${idVisitante}`;
+            const respuestaH2H = await fetch(urlH2H, options);
+            const datosH2H = await respuestaH2H.json();
+            
+            if (datosH2H.errors && Object.keys(datosH2H.errors).length > 0) {
+                 cuerpo.innerHTML = `<p style="color: #ff3333;">❌ La API bloqueó la consulta (límite de usos alcanzado).</p>`;
+                 return;
+            }
+
+            const partidosAnteriores = datosH2H.response.slice(0, 3);
+
+            if (partidosAnteriores.length === 0) {
+                cuerpo.innerHTML = `<p>No hay registro de partidos recientes entre <strong>${nombreLocal}</strong> y <strong>${nombreVisitante}</strong> en nuestra base de datos.</p>`;
+            } else {
+                let listaHTML = '<ul style="list-style: none; padding: 0;">';
+                partidosAnteriores.forEach(p => {
+                    const fecha = new Date(p.fixture.date).toLocaleDateString('es-AR');
+                    const golesLocal = p.goals.home !== null ? p.goals.home : '-';
+                    const golesVisita = p.goals.away !== null ? p.goals.away : '-';
+                    listaHTML += `
+                        <li style="background: #333; margin-bottom: 8px; padding: 10px; border-radius: 6px; font-size: 0.95rem;">
+                            <span style="color:#aaaaaa; font-size: 0.8rem;">📅 ${fecha}</span><br>
+                            <strong>${p.teams.home.name} <span style="color: #00ff00;">${golesLocal} - ${golesVisita}</span> ${p.teams.away.name}</strong>
+                        </li>
+                    `;
+                });
+                listaHTML += '</ul>';
+                cuerpo.innerHTML = listaHTML;
+            }
+        } catch (error) {
+            cuerpo.innerHTML = `<p style="color: #ff3333;">❌ Error de conexión.</p>`;
+            console.error(error);
+        }
+    }
+}
+
+function cerrarModal() { document.getElementById('mi-modal').classList.add('oculto'); }
+document.getElementById('mi-modal').addEventListener('click', function(e) { if (e.target === this) { cerrarModal(); } });
+
+const menuBoton = document.getElementById('menu-boton');
+const menuOpciones = document.getElementById('menu-opciones');
+const menuTexto = document.getElementById('menu-texto');
+const opciones = document.querySelectorAll('.opcion');
+
+menuBoton.addEventListener('click', () => menuOpciones.classList.toggle('oculto'));
+opciones.forEach(opcion => {
+    opcion.addEventListener('click', (e) => {
+        const idLigaElegida = opcion.getAttribute('data-value');
+        menuTexto.innerHTML = opcion.innerHTML;
+        menuOpciones.classList.add('oculto'); 
+        if (idLigaElegida === "todos") { renderizarPartidos(baseDeDatosHoy.slice(0, 10)); } 
+        else { renderizarPartidos(baseDeDatosHoy.filter(p => p.league.id == idLigaElegida)); }
+    });
+});
+document.addEventListener('click', (e) => { if (!menuBoton.contains(e.target) && !menuOpciones.contains(e.target)) menuOpciones.classList.add('oculto'); });
+
+cargarPartidosDeHoy();
