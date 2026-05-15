@@ -30,19 +30,19 @@ async function cargarPartidosDeHoy() {
         const datos = await respuesta.json();
 
         if (datos.errors && Object.keys(datos.errors).length > 0) {
-            document.getElementById('contenedor-partidos').innerHTML = `<h3 style='color: #ffffff;'>[ERROR BD 1] LÍMITE DE CONSULTAS ALCANZADO.</h3>`;
+            document.getElementById('contenedor-partidos').innerHTML = `<h3 style='color: #e62e2e;'>[ERROR] LÍMITE DE CONSULTAS ALCANZADO.</h3>`;
             return; 
         }
 
         if (!datos.response || datos.response.length === 0) {
-            document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #aaaaaa;'>NO HAY REGISTROS HOY.</h3>";
+            document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #c4a771;'>NO HAY PARTIDOS PROGRAMADOS HOY.</h3>";
             return;
         }
 
         baseDeDatosHoy = datos.response; 
         renderizarPartidos(baseDeDatosHoy.slice(0, 10));
     } catch (error) {
-        document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #ffffff;'>[ERROR BD 1] FALLA DE CONEXIÓN.</h3>";
+        document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #e62e2e;'>[ERROR] FALLA DE CONEXIÓN.</h3>";
     }
 }
 
@@ -61,9 +61,9 @@ function renderizarPartidos(listaDePartidos) {
 
         const semaforoHTML = `
             <div class="semaforo" onclick="event.stopPropagation(); abrirModal('prediccion', ${partido.fixture.id}, ${local.id}, ${visitante.id}, '${local.name.replace(/'/g, "\\'")}', '${visitante.name.replace(/'/g, "\\'")}', '${pre.jugadaSegura}', '${pre.jugadaModerada}', '${pre.jugadaArriesgada}', ${pre.segura}, ${pre.moderada}, ${pre.arriesgada})">
-                <div class="luz luz-blanca">${pre.segura}%</div>
-                <div class="luz luz-gris">${pre.moderada}%</div>
-                <div class="luz luz-oscura">${pre.arriesgada}%</div>
+                <div class="luz luz-verde">${pre.segura}%</div>
+                <div class="luz luz-amarilla">${pre.moderada}%</div>
+                <div class="luz luz-roja">${pre.arriesgada}%</div>
             </div>`;
 
         contenedor.innerHTML += `
@@ -87,8 +87,8 @@ async function abrirModal(tipo, idFixture, idLocal, idVisitante, nombreLocal, no
     modal.classList.remove('oculto'); 
 
     if (tipo === 'prediccion') {
-        titulo.innerText = 'JUGADAS SUGERIDAS';
-        cuerpo.innerHTML = `<h4 style="text-align:center; color: #aaaaaa;">CONECTANDO CON BD 2 (1XBET)...</h4>`;
+        titulo.innerText = '🎯 JUGADAS Y CUOTAS';
+        cuerpo.innerHTML = `<h4 style="text-align:center; color: #d4af37;">CONECTANDO CON 1XBET... ⏳</h4>`;
 
         // Valores por defecto (Algoritmo)
         let cSegura = (100 / pSegura).toFixed(2), cModerada = (100 / pModerada).toFixed(2), cArriesgada = (100 / pArriesgada).toFixed(2);
@@ -96,12 +96,10 @@ async function abrirModal(tipo, idFixture, idLocal, idVisitante, nombreLocal, no
         // Intento de extraer datos reales de la SEGUNDA BD (The Odds API)
         if (apiKeyCuotas !== "TU_NUEVA_API_KEY_AQUI") {
             try {
-                // Buscamos cuotas de fútbol para 1xBet
                 const urlOtraBD = `https://api.the-odds-api.com/v4/sports/upcoming/odds/?regions=eu&markets=h2h&bookmakers=1xbet&apiKey=${apiKeyCuotas}`;
                 const resOtraBD = await fetch(urlOtraBD);
                 const datosOtraBD = await resOtraBD.json();
 
-                // Lógica de Sincronización: Buscar coincidencia de nombres entre la BD 1 y la BD 2
                 const partidoFondo = datosOtraBD.find(p => 
                     p.home_team.toLowerCase().includes(nombreLocal.toLowerCase().substring(0, 5)) || 
                     nombreLocal.toLowerCase().includes(p.home_team.toLowerCase().substring(0, 5))
@@ -122,57 +120,61 @@ async function abrirModal(tipo, idFixture, idLocal, idVisitante, nombreLocal, no
                     let rArriesgada = asginarCuotaReal(betArriesgada); if(rArriesgada) cArriesgada = rArriesgada;
                 }
             } catch (error) {
-                console.error("Fallo de sincronización con la BD 2. Usando algoritmo.");
+                console.error("Fallo de sincronización con 1xBet. Usando cuotas de algoritmo.");
             }
         }
 
         cuerpo.innerHTML = `
-            <p style="color: #aaaaaa;">CUOTAS ESTIMADAS O SINCRONIZADAS:</p>
+            <p style="color: #c4a771; text-align: center; font-weight: bold; font-size: 0.9rem;">CUOTAS DEL MERCADO</p>
             <ul style="list-style: none; padding: 0;">
-                <li style="border: 1px solid #ffffff; padding: 10px; margin-bottom: 8px; border-radius: 5px;">
+                <li style="border: 1px solid #0bd14e; background: rgba(11,209,78,0.1); padding: 12px; margin-bottom: 10px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><strong style="color: #ffffff;">SEGURA (${pSegura}%):</strong><br> ${betSegura}</div>
-                        <span style="background-color: #ffffff; color: #000000; padding: 5px 10px; border-radius: 6px; font-weight: bold;">${cSegura}</span>
+                        <div><strong style="color: #0bd14e;">SEGURA (${pSegura}%):</strong><br> ${betSegura}</div>
+                        <span style="background-color: #0bd14e; color: #000000; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">${cSegura}</span>
                     </div>
                 </li>
-                <li style="border: 1px solid #aaaaaa; padding: 10px; margin-bottom: 8px; border-radius: 5px;">
+                <li style="border: 1px solid #ffd700; background: rgba(255,215,0,0.1); padding: 12px; margin-bottom: 10px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><strong style="color: #aaaaaa;">MODERADA (${pModerada}%):</strong><br> ${betModerada}</div>
-                        <span style="background-color: #aaaaaa; color: #000000; padding: 5px 10px; border-radius: 6px; font-weight: bold;">${cModerada}</span>
+                        <div><strong style="color: #ffd700;">MODERADA (${pModerada}%):</strong><br> ${betModerada}</div>
+                        <span style="background-color: #ffd700; color: #000000; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">${cModerada}</span>
                     </div>
                 </li>
-                <li style="border: 1px solid #555555; padding: 10px; margin-bottom: 8px; border-radius: 5px;">
+                <li style="border: 1px solid #e62e2e; background: rgba(230,46,46,0.1); padding: 12px; margin-bottom: 10px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><strong style="color: #555555;">ARRIESGADA (${pArriesgada}%):</strong><br> ${betArriesgada}</div>
-                        <span style="background-color: #555555; color: #ffffff; padding: 5px 10px; border-radius: 6px; font-weight: bold;">${cArriesgada}</span>
+                        <div><strong style="color: #e62e2e;">ARRIESGADA (${pArriesgada}%):</strong><br> ${betArriesgada}</div>
+                        <span style="background-color: #e62e2e; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">${cArriesgada}</span>
                     </div>
                 </li>
             </ul>`;
     } 
     else if (tipo === 'estadisticas') {
-        titulo.innerText = `H2H HISTORIAL`;
-        cuerpo.innerHTML = `<h4 style="text-align:center; color: #aaaaaa;">CONECTANDO CON BD 1...</h4>`;
+        titulo.innerText = `📊 H2H: ENFRENTAMIENTOS REALES`;
+        cuerpo.innerHTML = `<h4 style="text-align:center; color: #d4af37;">BUSCANDO HISTORIAL... ⏳</h4>`;
         try {
             const urlH2H = `https://v3.football.api-sports.io/fixtures/headtohead?h2h=${idLocal}-${idVisitante}`;
             const respuestaH2H = await fetch(urlH2H, optionsPartidos);
             const datosH2H = await respuestaH2H.json();
             
-            if (datosH2H.errors && Object.keys(datosH2H.errors).length > 0) { cuerpo.innerHTML = `<p style="color: #ffffff;">[ERROR] LÍMITE DE CONSULTAS BD 1.</p>`; return; }
+            if (datosH2H.errors && Object.keys(datosH2H.errors).length > 0) { cuerpo.innerHTML = `<p style="color: #e62e2e;">[ERROR] LÍMITE DE CONSULTAS BD 1.</p>`; return; }
             
             const partidosAnteriores = datosH2H.response.slice(0, 3);
             if (partidosAnteriores.length === 0) {
-                cuerpo.innerHTML = `<p>SIN REGISTROS RECIENTES.</p>`;
+                cuerpo.innerHTML = `<p style="color: #c4a771; text-align: center;">NO HAY REGISTROS RECIENTES ENTRE ESTOS EQUIPOS.</p>`;
             } else {
                 let listaHTML = '<ul style="list-style: none; padding: 0;">';
                 partidosAnteriores.forEach(p => {
                     const fecha = new Date(p.fixture.date).toLocaleDateString('es-AR');
                     const golesLocal = p.goals.home !== null ? p.goals.home : '-';
                     const golesVisita = p.goals.away !== null ? p.goals.away : '-';
-                    listaHTML += `<li style="background: #1a1a1a; margin-bottom: 8px; padding: 10px; border-radius: 6px; border: 1px solid #333;"><span style="color:#888888; font-size: 0.8rem;">[${fecha}]</span><br><strong>${p.teams.home.name} <span style="color: #ffffff;">${golesLocal} - ${golesVisita}</span> ${p.teams.away.name}</strong></li>`;
+                    listaHTML += `
+                        <li style="background: #05120a; margin-bottom: 8px; padding: 10px; border-radius: 6px; border: 1px solid #d4af37; box-shadow: inset 0 0 5px rgba(0,0,0,0.8);">
+                            <span style="color:#c4a771; font-size: 0.8rem;">📅 ${fecha}</span><br>
+                            <strong>${p.teams.home.name} <span style="color: #0bd14e; font-size: 1.1rem; margin: 0 5px;">${golesLocal} - ${golesVisita}</span> ${p.teams.away.name}</strong>
+                        </li>`;
                 });
                 cuerpo.innerHTML = listaHTML + '</ul>';
             }
-        } catch (error) { cuerpo.innerHTML = `<p style="color: #ffffff;">[ERROR BD 1] FALLA DE CONEXIÓN.</p>`; }
+        } catch (error) { cuerpo.innerHTML = `<p style="color: #e62e2e;">[ERROR] FALLA DE CONEXIÓN AL HISTORIAL.</p>`; }
     }
 }
 
