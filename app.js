@@ -29,29 +29,25 @@ function calcularPronostico(idLocal, idVisitante) {
     };
 }
 
-// ESTA ES LA FUNCIÓN CORREGIDA QUE CARGA AL INSTANTE
 async function cargarPartidosDeHoy() {
     try {
         const respuesta = await fetch(url, options);
         const datos = await respuesta.json();
 
-        // 1. Si la API detecta un error (Ej: Te quedaste sin consultas gratis)
         if (datos.errors && Object.keys(datos.errors).length > 0) {
             const mensajeError = Object.values(datos.errors)[0];
             document.getElementById('contenedor-partidos').innerHTML = `
                 <h3 style='color: #ff3333;'>❌ Bloqueo de API</h3>
                 <p style='color: #aaaaaa;'>Motivo: ${mensajeError}</p>
-                <p style='color: #aaaaaa; font-size: 0.8rem;'>(Probablemente gastaste las 100 consultas diarias gratuitas. Se renuevan mañana a las 00:00).</p>`;
-            return; // Detiene la ejecución al instante
+                <p style='color: #aaaaaa; font-size: 0.8rem;'>(Gastaste las 100 consultas diarias gratuitas. Se renuevan mañana).</p>`;
+            return; 
         }
 
-        // 2. Si no hay partidos programados para hoy
         if (!datos.response || datos.response.length === 0) {
             document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #aaaaaa;'>No hay partidos en la base de datos para hoy.</h3>";
             return;
         }
 
-        // 3. Si todo está perfecto, renderiza al instante
         baseDeDatosHoy = datos.response; 
         renderizarPartidos(baseDeDatosHoy.slice(0, 10));
 
@@ -80,8 +76,9 @@ function renderizarPartidos(listaDePartidos) {
         
         const pre = calcularPronostico(local.id, visitante.id);
 
+        // Se agregó partido.fixture.id para poder consultar la API de cuotas
         const semaforoHTML = `
-            <div class="semaforo" onclick="event.stopPropagation(); abrirModal('prediccion', ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}', '${pre.jugadaSegura}', '${pre.jugadaModerada}', '${pre.jugadaArriesgada}', ${pre.segura}, ${pre.moderada}, ${pre.arriesgada})">
+            <div class="semaforo" onclick="event.stopPropagation(); abrirModal('prediccion', ${partido.fixture.id}, ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}', '${pre.jugadaSegura}', '${pre.jugadaModerada}', '${pre.jugadaArriesgada}', ${pre.segura}, ${pre.moderada}, ${pre.arriesgada})">
                 <div class="luz luz-verde" title="Apuesta Segura">${pre.segura}%</div>
                 <div class="luz luz-amarilla" title="Apuesta Moderada">${pre.moderada}%</div>
                 <div class="luz luz-roja" title="Apuesta Arriesgada">${pre.arriesgada}%</div>
@@ -89,7 +86,7 @@ function renderizarPartidos(listaDePartidos) {
         `;
 
         const tarjetaHTML = `
-            <div class="tarjeta-partido" onclick="abrirModal('estadisticas', ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}')">
+            <div class="tarjeta-partido" onclick="abrirModal('estadisticas', ${partido.fixture.id}, ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}')">
                 <div class="encabezado-liga"><img src="${liga.logo}"><span>${liga.name}</span></div>
                 <div class="cuerpo-partido">
                     <div class="info-partido">
@@ -105,7 +102,7 @@ function renderizarPartidos(listaDePartidos) {
     });
 }
 
-async function abrirModal(tipo, idLocal, idVisitante, nombreLocal, nombreVisitante, betSegura, betModerada, betArriesgada, pSegura, pModerada, pArriesgada) {
+async function abrirModal(tipo, idFixture, idLocal, idVisitante, nombreLocal, nombreVisitante, betSegura, betModerada, betArriesgada, pSegura, pModerada, pArriesgada) {
     const modal = document.getElementById('mi-modal');
     const titulo = document.getElementById('modal-titulo');
     const cuerpo = document.getElementById('modal-cuerpo');
@@ -114,17 +111,78 @@ async function abrirModal(tipo, idLocal, idVisitante, nombreLocal, nombreVisitan
 
     if (tipo === 'prediccion') {
         titulo.innerText = '🎯 Jugadas Sugeridas';
+        cuerpo.innerHTML = `<h4 style="text-align:center; color: #ffcc00;">Consultando cuotas en 1xBet... ⏳</h4>`;
+
+        // 1. Cuotas por defecto (Algoritmo matemático por si 1xBet falla o no tiene el mercado)
+        let cSegura = (100 / pSegura).toFixed(2);
+        let cModerada = (100 / pModerada).toFixed(2);
+        let cArriesgada = (100 / pArriesgada).toFixed(2);
+
+        // 2. Intentar sacar las cuotas reales de 1xBet (Bookmaker ID 15)
+        try {
+            const urlOdds = `https://v3.football.api-sports.io/odds?fixture=${idFixture}&bookmaker=15`;
+            const resOdds = await fetch(urlOdds, options);
+            const dataOdds = await resOdds.json();
+
+            if (dataOdds.response && dataOdds.response.length > 0) {
+                const bets = dataOdds.response[0].bookmakers[0].bets;
+                
+                // Mapeo para traducir tus textos a los identificadores de la API
+                const obtenerCuotaReal = (jugada) => {
+                    try {
+                        if (jugada === "Gana Local") return bets.find(b => b.id === 1)?.values.find(v => v.value === "Home")?.odd;
+                        if (jugada === "Gana Visitante") return bets.find(b => b.id === 1)?.values.find(v => v.value === "Away")?.odd;
+                        if (jugada === "Empate Exacto") return bets.find(b => b.id === 1)?.values.find(v => v.value === "Draw")?.odd;
+                        if (jugada === "Más de 1.5 Goles") return bets.find(b => b.id === 5)?.values.find(v => v.value === "Over 1.5")?.odd;
+                        if (jugada === "Más de 2.5 Goles") return bets.find(b => b.id === 5)?.values.find(v => v.value === "Over 2.5")?.odd;
+                        if (jugada === "Doble Oportunidad (Local o Empate)") return bets.find(b => b.id === 12)?.values.find(v => v.value === "Home/Draw")?.odd;
+                        if (jugada === "Doble Oportunidad (Empate o Visita)") return bets.find(b => b.id === 12)?.values.find(v => v.value === "Draw/Away")?.odd;
+                        if (jugada === "Cualquiera de los dos gana") return bets.find(b => b.id === 12)?.values.find(v => v.value === "Home/Away")?.odd;
+                        if (jugada === "Ambos Equipos Marcan (Sí)") return bets.find(b => b.id === 8)?.values.find(v => v.value === "Yes")?.odd;
+                    } catch(e) { return null; }
+                    return null;
+                };
+
+                const realSegura = obtenerCuotaReal(betSegura);
+                if(realSegura) cSegura = realSegura;
+
+                const realModerada = obtenerCuotaReal(betModerada);
+                if(realModerada) cModerada = realModerada;
+
+                const realArriesgada = obtenerCuotaReal(betArriesgada);
+                if(realArriesgada) cArriesgada = realArriesgada;
+            }
+        } catch (error) {
+            console.error("Aviso: No se pudo conectar con 1xBet, mostrando cuotas de algoritmo.");
+        }
+
+        // 3. Imprimir el resultado en la pantalla
         cuerpo.innerHTML = `
-            <p>Nivel de confianza del algoritmo para este partido:</p>
+            <p>Sugerencias y Cuotas (1xBet):</p>
             <ul style="list-style: none; padding: 0;">
                 <li style="background: rgba(0,255,0,0.1); border-left: 4px solid #00ff00; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
-                    <strong style="color: #00ff00;">Apuesta Segura (${pSegura}%):</strong><br> ${betSegura}
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #00ff00;">Segura (${pSegura}%):</strong><br> ${betSegura}
+                        </div>
+                        <span style="background-color: #00ff00; color: #121212; padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">${cSegura}</span>
+                    </div>
                 </li>
                 <li style="background: rgba(255,204,0,0.1); border-left: 4px solid #ffcc00; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
-                    <strong style="color: #ffcc00;">Apuesta Moderada (${pModerada}%):</strong><br> ${betModerada}
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #ffcc00;">Moderada (${pModerada}%):</strong><br> ${betModerada}
+                        </div>
+                        <span style="background-color: #ffcc00; color: #121212; padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">${cModerada}</span>
+                    </div>
                 </li>
                 <li style="background: rgba(255,51,51,0.1); border-left: 4px solid #ff3333; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
-                    <strong style="color: #ff3333;">Apuesta Arriesgada (${pArriesgada}%):</strong><br> ${betArriesgada}
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #ff3333;">Arriesgada (${pArriesgada}%):</strong><br> ${betArriesgada}
+                        </div>
+                        <span style="background-color: #ff3333; color: white; padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">${cArriesgada}</span>
+                    </div>
                 </li>
             </ul>
         `;
