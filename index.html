@@ -1,193 +1,100 @@
-const apiKey = "0464d33c8013d01fb7387b5148f18a9a"; 
-
-const hoy = new Date().toISOString().split('T')[0];
-const url = `https://v3.football.api-sports.io/fixtures?date=${hoy}`;
-const options = { method: 'GET', headers: { 'x-apisports-key': apiKey } };
-
-let baseDeDatosHoy = []; 
-
-// ALGORITMO: NIVELES DE RIESGO DE APUESTA
-function calcularPronostico(idLocal, idVisitante) {
-    let factor = (idLocal + idVisitante) % 20; 
-    
-    let probSegura = 75 + factor; 
-    let probModerada = 45 + factor; 
-    let probArriesgada = 15 + factor; 
-
-    const apuestasSeguras = ["Más de 1.5 Goles", "Doble Oportunidad (Local o Empate)", "Doble Oportunidad (Empate o Visita)", "Cualquiera de los dos gana"];
-    const apuestasModeradas = ["Ambos Equipos Marcan (Sí)", "Gana Local", "Gana Visitante", "Más de 2.5 Goles"];
-    const apuestasArriesgadas = ["Local Gana y Más de 2.5 Goles", "Empate Exacto", "Visita Gana y Ambos Marcan", "Marcador Correcto (1-0 o 0-1)"];
-
-    let betSegura = apuestasSeguras[(idLocal) % apuestasSeguras.length];
-    let betModerada = apuestasModeradas[(idVisitante) % apuestasModeradas.length];
-    let betArriesgada = apuestasArriesgadas[(idLocal + idVisitante) % apuestasArriesgadas.length];
-
-    return { 
-        segura: probSegura, jugadaSegura: betSegura,
-        moderada: probModerada, jugadaModerada: betModerada,
-        arriesgada: probArriesgada, jugadaArriesgada: betArriesgada 
-    };
-}
-
-// ESTA ES LA FUNCIÓN CORREGIDA QUE CARGA AL INSTANTE
-async function cargarPartidosDeHoy() {
-    try {
-        const respuesta = await fetch(url, options);
-        const datos = await respuesta.json();
-
-        // 1. Si la API detecta un error (Ej: Te quedaste sin consultas gratis)
-        if (datos.errors && Object.keys(datos.errors).length > 0) {
-            const mensajeError = Object.values(datos.errors)[0];
-            document.getElementById('contenedor-partidos').innerHTML = `
-                <h3 style='color: #ff3333;'>❌ Bloqueo de API</h3>
-                <p style='color: #aaaaaa;'>Motivo: ${mensajeError}</p>
-                <p style='color: #aaaaaa; font-size: 0.8rem;'>(Probablemente gastaste las 100 consultas diarias gratuitas. Se renuevan mañana).</p>`;
-            return; // Detiene la ejecución al instante
-        }
-
-        // 2. Si no hay partidos programados para hoy
-        if (!datos.response || datos.response.length === 0) {
-            document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: #aaaaaa;'>No hay partidos en la base de datos para hoy.</h3>";
-            return;
-        }
-
-        // 3. Si todo está perfecto, renderiza al instante
-        baseDeDatosHoy = datos.response; 
-        renderizarPartidos(baseDeDatosHoy.slice(0, 10));
-
-    } catch (error) {
-        document.getElementById('contenedor-partidos').innerHTML = "<h3 style='color: red;'>❌ Error de conexión al cargar los partidos.</h3>";
-        console.error("Detalle del error:", error);
-    }
-}
-
-function renderizarPartidos(listaDePartidos) {
-    const contenedor = document.getElementById('contenedor-partidos');
-    contenedor.innerHTML = ''; 
-
-    if (listaDePartidos.length === 0) {
-        contenedor.innerHTML = "<h3 style='color: #aaaaaa;'>No hay partidos programados para esta liga hoy.</h3>";
-        return;
-    }
-
-    const historialHTML = `<div class="historial"><span class="bg-g">G</span><span class="bg-e">E</span><span class="bg-g">G</span><span class="bg-p">P</span><span class="bg-g">G</span></div>`;
-
-    listaDePartidos.forEach(partido => {
-        const local = partido.teams.home;
-        const visitante = partido.teams.away;
-        const liga = partido.league;
-        const horaLocal = new Date(partido.fixture.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greenparley</title>
+    <style>
+        body { background-color: #121212; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
+        h1 { color: #00ff00; font-size: 2.5rem; margin-bottom: 0px; }
+        p { color: #aaaaaa; margin-bottom: 20px; font-size: 0.9rem; }
         
-        const pre = calcularPronostico(local.id, visitante.id);
+        .filtros { margin-bottom: 20px; display: flex; justify-content: center; }
+        .menu-personalizado { position: relative; width: 300px; text-align: left; user-select: none; z-index: 10; }
+        .menu-boton { background-color: #1e1e1e; border: 2px solid #00ff00; padding: 10px 15px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .contenido-boton { display: flex; align-items: center; gap: 10px; }
+        .contenido-boton img { width: 20px; height: 20px; background: white; border-radius: 50%; padding: 2px;}
+        .menu-opciones { position: absolute; top: 110%; left: 0; right: 0; background-color: #1e1e1e; border: 1px solid #00ff00; border-radius: 8px; max-height: 250px; overflow-y: auto; }
+        .oculto { display: none !important; }
+        .opcion { padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #333; }
+        .opcion:hover { background-color: #333; }
+        .opcion img { width: 25px; height: 25px; background: white; border-radius: 50%; padding: 2px;}
 
-        const semaforoHTML = `
-            <div class="semaforo" onclick="event.stopPropagation(); abrirModal('prediccion', ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}', '${pre.jugadaSegura}', '${pre.jugadaModerada}', '${pre.jugadaArriesgada}', ${pre.segura}, ${pre.moderada}, ${pre.arriesgada})">
-                <div class="luz luz-verde" title="Apuesta Segura">${pre.segura}%</div>
-                <div class="luz luz-amarilla" title="Apuesta Moderada">${pre.moderada}%</div>
-                <div class="luz luz-roja" title="Apuesta Arriesgada">${pre.arriesgada}%</div>
-            </div>
-        `;
+        #contenedor-partidos { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 800px; margin: 0 auto; }
 
-        const tarjetaHTML = `
-            <div class="tarjeta-partido" onclick="abrirModal('estadisticas', ${local.id}, ${visitante.id}, '${local.name}', '${visitante.name}')">
-                <div class="encabezado-liga"><img src="${liga.logo}"><span>${liga.name}</span></div>
-                <div class="cuerpo-partido">
-                    <div class="info-partido">
-                        <div class="equipo"><img src="${local.logo}"><span>${local.name}</span>${historialHTML}</div>
-                        <div class="centro-partido"><div class="hora">${horaLocal}</div></div>
-                        <div class="equipo"><img src="${visitante.logo}"><span>${visitante.name}</span>${historialHTML}</div>
-                    </div>
-                    ${semaforoHTML}
-                </div>
-            </div>
-        `;
-        contenedor.innerHTML += tarjetaHTML;
-    });
-}
+        .tarjeta-partido { cursor: pointer; background-color: #1e1e1e; border: 1px solid #00ff00; border-radius: 10px; padding: 10px 15px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 4px 8px rgba(0,255,0,0.1); transition: transform 0.2s; }
+        .tarjeta-partido:hover { transform: scale(1.02); border-color: #ffffff; } 
+        
+        .encabezado-liga { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 10px; }
+        .encabezado-liga img { width: 20px; height: 20px; border-radius: 50%; background-color: white; padding: 2px; }
+        .encabezado-liga span { font-size: 0.75rem; color: #aaaaaa; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+        .cuerpo-partido { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
+        .info-partido { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 80%; padding-right: 15px; border-right: 1px solid #333; }
+        .equipo { display: flex; flex-direction: column; align-items: center; width: 35%; }
+        .equipo img { width: 35px; height: 35px; margin-bottom: 5px; }
+        .equipo span { font-size: 0.85rem; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .historial { display: flex; gap: 2px; margin-top: 5px; }
+        .historial span { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: bold; border-radius: 3px; color: #121212; }
+        .bg-g { background-color: #00ff00; } .bg-e { background-color: #aaaaaa; } .bg-p { background-color: #ff3333; color: white !important;} 
+        .centro-partido { width: 30%; display: flex; justify-content: center; }
+        .hora { color: #00ff00; font-weight: bold; font-size: 1.1rem; background-color: #121212; padding: 4px 10px; border-radius: 6px; }
+        
+        .semaforo { cursor: help; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 15%; gap: 4px; padding: 5px; border-radius: 5px; transition: background 0.2s;}
+        .semaforo:hover { background-color: #333; }
+        .luz { width: 100%; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.7rem; font-weight: bold; color: #121212; }
+        .luz-verde { background-color: #00ff00; } .luz-amarilla { background-color: #ffcc00; } .luz-roja { background-color: #ff3333; color: white !important; }
 
-async function abrirModal(tipo, idLocal, idVisitante, nombreLocal, nombreVisitante, betSegura, betModerada, betArriesgada, pSegura, pModerada, pArriesgada) {
-    const modal = document.getElementById('mi-modal');
-    const titulo = document.getElementById('modal-titulo');
-    const cuerpo = document.getElementById('modal-cuerpo');
-
-    modal.classList.remove('oculto'); 
-
-    if (tipo === 'prediccion') {
-        titulo.innerText = '🎯 Jugadas Sugeridas';
-        cuerpo.innerHTML = `
-            <p>Nivel de confianza del algoritmo para este partido:</p>
-            <ul style="list-style: none; padding: 0;">
-                <li style="background: rgba(0,255,0,0.1); border-left: 4px solid #00ff00; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
-                    <strong style="color: #00ff00;">Apuesta Segura (${pSegura}%):</strong><br> ${betSegura}
-                </li>
-                <li style="background: rgba(255,204,0,0.1); border-left: 4px solid #ffcc00; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
-                    <strong style="color: #ffcc00;">Apuesta Moderada (${pModerada}%):</strong><br> ${betModerada}
-                </li>
-                <li style="background: rgba(255,51,51,0.1); border-left: 4px solid #ff3333; padding: 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0;">
-                    <strong style="color: #ff3333;">Apuesta Arriesgada (${pArriesgada}%):</strong><br> ${betArriesgada}
-                </li>
-            </ul>
-        `;
-    } 
-    else if (tipo === 'estadisticas') {
-        titulo.innerText = `📊 H2H: Enfrentamientos Reales`;
-        cuerpo.innerHTML = `<h4 style="text-align:center; color: #ffcc00;">Conectando con la base de datos... ⏳</h4>`;
-
-        try {
-            const urlH2H = `https://v3.football.api-sports.io/fixtures/headtohead?h2h=${idLocal}-${idVisitante}`;
-            const respuestaH2H = await fetch(urlH2H, options);
-            const datosH2H = await respuestaH2H.json();
-            
-            if (datosH2H.errors && Object.keys(datosH2H.errors).length > 0) {
-                 cuerpo.innerHTML = `<p style="color: #ff3333;">❌ La API bloqueó la consulta (límite de usos alcanzado).</p>`;
-                 return;
-            }
-
-            const partidosAnteriores = datosH2H.response.slice(0, 3);
-
-            if (partidosAnteriores.length === 0) {
-                cuerpo.innerHTML = `<p>No hay registro de partidos recientes entre <strong>${nombreLocal}</strong> y <strong>${nombreVisitante}</strong> en nuestra base de datos.</p>`;
-            } else {
-                let listaHTML = '<ul style="list-style: none; padding: 0;">';
-                partidosAnteriores.forEach(p => {
-                    const fecha = new Date(p.fixture.date).toLocaleDateString('es-AR');
-                    const golesLocal = p.goals.home !== null ? p.goals.home : '-';
-                    const golesVisita = p.goals.away !== null ? p.goals.away : '-';
-                    listaHTML += `
-                        <li style="background: #333; margin-bottom: 8px; padding: 10px; border-radius: 6px; font-size: 0.95rem;">
-                            <span style="color:#aaaaaa; font-size: 0.8rem;">📅 ${fecha}</span><br>
-                            <strong>${p.teams.home.name} <span style="color: #00ff00;">${golesLocal} - ${golesVisita}</span> ${p.teams.away.name}</strong>
-                        </li>
-                    `;
-                });
-                listaHTML += '</ul>';
-                cuerpo.innerHTML = listaHTML;
-            }
-        } catch (error) {
-            cuerpo.innerHTML = `<p style="color: #ff3333;">❌ Error de conexión.</p>`;
-            console.error(error);
+        /* DISEÑO DE LA VENTANA FLOTANTE (MODAL) */
+        .modal-fondo {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
         }
-    }
-}
+        .modal-contenido {
+            background-color: #1e1e1e; border: 2px solid #00ff00; border-radius: 15px;
+            padding: 20px; width: 90%; max-width: 400px; position: relative;
+            box-shadow: 0 0 20px rgba(0,255,0,0.2); text-align: left;
+        }
+        .cerrar-modal {
+            position: absolute; top: 10px; right: 15px; font-size: 1.5rem;
+            color: #aaaaaa; cursor: pointer; font-weight: bold;
+        }
+        .cerrar-modal:hover { color: red; }
+        #modal-titulo { color: #00ff00; margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        #modal-cuerpo { color: #ffffff; line-height: 1.5; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <h1>Greenparley</h1>
+    <p>Pronósticos algorítmicos en vivo ⚽</p>
+    
+    <div class="filtros">
+        <div class="menu-personalizado">
+            <div id="menu-boton" class="menu-boton">
+                <div id="menu-texto" class="contenido-boton"><span style="font-size: 1.2rem;">🌍</span> Todos los partidos</div><span>▼</span>
+            </div>
+            <div id="menu-opciones" class="menu-opciones oculto">
+                <div class="opcion" data-value="todos"><span style="font-size: 1.2rem; padding: 2px;">🌍</span> Todos los partidos</div>
+                <div class="opcion" data-value="128"><img src="https://media.api-sports.io/football/leagues/128.png"> Liga Argentina</div>
+                <div class="opcion" data-value="13"><img src="https://media.api-sports.io/football/leagues/13.png"> Copa Libertadores</div>
+                <div class="opcion" data-value="39"><img src="https://media.api-sports.io/football/leagues/39.png"> Premier League</div>
+                <div class="opcion" data-value="140"><img src="https://media.api-sports.io/football/leagues/140.png"> La Liga (España)</div>
+            </div>
+        </div>
+    </div>
 
-function cerrarModal() { document.getElementById('mi-modal').classList.add('oculto'); }
-document.getElementById('mi-modal').addEventListener('click', function(e) { if (e.target === this) { cerrarModal(); } });
+    <div id="contenedor-partidos">
+        <h3 id="cargando" style="color: yellow;">⏳ Analizando base de datos global...</h3>
+    </div>
 
-const menuBoton = document.getElementById('menu-boton');
-const menuOpciones = document.getElementById('menu-opciones');
-const menuTexto = document.getElementById('menu-texto');
-const opciones = document.querySelectorAll('.opcion');
+    <div id="mi-modal" class="modal-fondo oculto">
+        <div class="modal-contenido">
+            <span class="cerrar-modal" onclick="cerrarModal()">×</span>
+            <h2 id="modal-titulo">Título</h2>
+            <div id="modal-cuerpo">Acá va el texto de la base de datos...</div>
+        </div>
+    </div>
 
-menuBoton.addEventListener('click', () => menuOpciones.classList.toggle('oculto'));
-opciones.forEach(opcion => {
-    opcion.addEventListener('click', (e) => {
-        const idLigaElegida = opcion.getAttribute('data-value');
-        menuTexto.innerHTML = opcion.innerHTML;
-        menuOpciones.classList.add('oculto'); 
-        if (idLigaElegida === "todos") { renderizarPartidos(baseDeDatosHoy.slice(0, 10)); } 
-        else { renderizarPartidos(baseDeDatosHoy.filter(p => p.league.id == idLigaElegida)); }
-    });
-});
-document.addEventListener('click', (e) => { if (!menuBoton.contains(e.target) && !menuOpciones.contains(e.target)) menuOpciones.classList.add('oculto'); });
-
-cargarPartidosDeHoy();
+    <script src="app.js"></script>
+</body>
+</html>
